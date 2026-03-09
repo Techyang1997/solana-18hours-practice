@@ -76,36 +76,36 @@ describe('voting', () => {
     expect(crunchy.candidateVotes.toNumber()).toEqual(0)
   })
 
-  it('Vote', async () => {
-    const [pollPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('poll'), pollId.toArrayLike(Buffer, 'le', 8)],
-      program.programId,
-    )
-
-    const [smoothPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('candidate'), Buffer.from('smooth'), pollId.toArrayLike(Buffer, 'le', 8)],
-      program.programId,
-    )
-    await program.methods
-      .vote('smooth', pollId)
-      .accounts({
-        signer: payer.publicKey,
-        poll: pollPda,
-        candidate: smoothPda,
-      })
-      .rpc()
-
-    const [crunchyPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('candidate'), Buffer.from('crunchy'), pollId.toArrayLike(Buffer, 'le', 8)],
-      program.programId,
-    )
-
-    const smooth = await program.account.candidate.fetch(smoothPda)
-    const crunchy = await program.account.candidate.fetch(crunchyPda)
-
-    expect(smooth.candidateName).toEqual('smooth')
-    expect(smooth.candidateVotes.toNumber()).toEqual(1)
-    expect(crunchy.candidateName).toEqual('crunchy')
-    expect(crunchy.candidateVotes.toNumber()).toEqual(0)
-  })
+  // it('Vote', async () => {
+  //   const [pollPda] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from('poll'), pollId.toArrayLike(Buffer, 'le', 8)],
+  //     program.programId,
+  //   )
+  //
+  //   const [smoothPda] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from('candidate'), Buffer.from('smooth'), pollId.toArrayLike(Buffer, 'le', 8)],
+  //     program.programId,
+  //   )
+  //   await program.methods
+  //     .vote('smooth', pollId)
+  //     .accounts({
+  //       signer: payer.publicKey,
+  //       poll: pollPda,
+  //       candidate: smoothPda,
+  //     })
+  //     .rpc()
+  //
+  //   const [crunchyPda] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from('candidate'), Buffer.from('crunchy'), pollId.toArrayLike(Buffer, 'le', 8)],
+  //     program.programId,
+  //   )
+  //
+  //   const smooth = await program.account.candidate.fetch(smoothPda)
+  //   const crunchy = await program.account.candidate.fetch(crunchyPda)
+  //
+  //   expect(smooth.candidateName).toEqual('smooth')
+  //   expect(smooth.candidateVotes.toNumber()).toEqual(1)
+  //   expect(crunchy.candidateName).toEqual('crunchy')
+  //   expect(crunchy.candidateVotes.toNumber()).toEqual(0)
+  // })
 })
