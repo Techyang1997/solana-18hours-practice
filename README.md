@@ -9,6 +9,7 @@
 | 01   | voting-dapp | 投票应用        | ✅ 完成 | [查看代码](./voting-dapp/) |
 | 02   | crud-app    | 增删改查应用      | ✅ 完成 | [查看代码](./crud-app/)    |
 | 03   | new-token   | 通过命令创建token | ✅ 完成 | [查看代码](./new-token/)   |
+| 03   | swap        | swap兑换功能    | ✅ 完成 | [查看代码](./swap/)        |
 
 ## 🛠 技术栈
 - **链端 (On-chain)**: Rust, Anchor Framework
