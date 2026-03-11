@@ -7,7 +7,6 @@ use crate::{transfer_tokens, Offer};
 
 
 #[derive(Accounts)]
-#[instruction(id: u64)]
 pub struct TakeOffer<'info> {
     #[account(mut)]
     pub taker: Signer<'info>,
@@ -50,7 +49,7 @@ pub struct TakeOffer<'info> {
         has_one = maker,
         has_one = mint_token_a,
         has_one = mint_token_b,
-        seeds = [b"offer",maker.key().as_ref(),id.to_le_bytes().as_ref()],
+        seeds = [b"offer",maker.key().as_ref(),offer.id.to_le_bytes().as_ref()],
         bump = offer.bump
     )]
     pub offer: Account<'info,Offer>,

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import * as anchor from "@coral-xyz/anchor";
-const { BN } = anchor;
+import { Program } from "@coral-xyz/anchor"; // Program 作为类型/类导入通常没问题
+import BN from "bn.js"; // <-- 直接从原生库导入 BN
 import {
   TOKEN_2022_PROGRAM_ID,
   type TOKEN_PROGRAM_ID,
@@ -15,7 +16,6 @@ import {
   createAccountsMintsAndTokenAccounts,
   makeKeypairs,
 } from "@solana-developers/helpers";
-import { Program } from "@coral-xyz/anchor";
 
 // Work on both Token Program and new Token Extensions Program
 const TOKEN_PROGRAM: typeof TOKEN_2022_PROGRAM_ID | typeof TOKEN_PROGRAM_ID =
@@ -32,7 +32,7 @@ const getRandomBigNumber = (size = 8) => {
   return new BN(randomBytes(size));
 };
 
-describe("swap", async () => {
+describe("swap",  () => {
   // Use the cluster and the keypair from Anchor.toml
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -52,10 +52,10 @@ describe("swap", async () => {
 
   let alice: anchor.web3.Keypair;
   let bob: anchor.web3.Keypair;
-  let tokenMintA: anchor.web3.Keypair;
-  let tokenMintB: anchor.web3.Keypair;
+  let mintTokenA: anchor.web3.Keypair;
+  let mintTokenB: anchor.web3.Keypair;
 
-  [alice, bob, tokenMintA, tokenMintB] = makeKeypairs(4);
+  [alice, bob, mintTokenA, mintTokenB] = makeKeypairs(4);
 
   const tokenAOfferedAmount = new BN(1_000_000);
   const tokenBWantedAmount = new BN(1_000_000);
@@ -91,8 +91,8 @@ describe("swap", async () => {
       bob = users[1];
 
       const mints = usersMintsAndTokenAccounts.mints;
-      tokenMintA = mints[0];
-      tokenMintB = mints[1];
+      mintTokenA = mints[0];
+      mintTokenB = mints[1];
 
       const tokenAccounts = usersMintsAndTokenAccounts.tokenAccounts;
 
@@ -105,10 +105,10 @@ describe("swap", async () => {
       // Save the accounts for later use
       accounts.maker = alice.publicKey;
       accounts.taker = bob.publicKey;
-      accounts.tokenMintA = tokenMintA.publicKey;
+      accounts.mintTokenA = mintTokenA.publicKey;
       accounts.makerTokenAccountA = aliceTokenAccountA;
       accounts.takerTokenAccountA = bobTokenAccountA;
-      accounts.tokenMintB = tokenMintB.publicKey;
+      accounts.mintTokenB = mintTokenB.publicKey;
       accounts.makerTokenAccountB = aliceTokenAccountB;
       accounts.takerTokenAccountB = bobTokenAccountB;
     }
@@ -129,7 +129,7 @@ describe("swap", async () => {
     )[0];
 
     const vault = getAssociatedTokenAddressSync(
-      accounts.tokenMintA,
+      accounts.mintTokenA,
       offer,
       true,
       TOKEN_PROGRAM
@@ -155,8 +155,8 @@ describe("swap", async () => {
     const offerAccount = await program.account.offer.fetch(offer);
 
     assert(offerAccount.maker.equals(alice.publicKey));
-    assert(offerAccount.mintTokenA.equals(accounts.tokenMintA));
-    assert(offerAccount.mintTokenB.equals(accounts.tokenMintB));
+    assert(offerAccount.mintTokenA.equals(accounts.mintTokenA));
+    assert(offerAccount.mintTokenB.equals(accounts.mintTokenB));
     assert(offerAccount.tokenBWantedAmount.eq(tokenBWantedAmount));
   }).slow(ANCHOR_SLOW_TEST_THRESHOLD);
 
