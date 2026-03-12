@@ -22,7 +22,7 @@ export function useCounterProgram() {
   // 缓存 Program 实例，作为与智能合约交互的核心对象
   const program = useMemo(() => getCounterProgram(provider, programId), [provider, programId])
 
-  // React Query：抓取所有名为 "token_vesting" 的账户数据
+  // React Query：抓取所有名为 "crud-app" 的账户数据
   const accounts = useQuery({
     queryKey: ['crud-app', 'all', { cluster }],
     queryFn: () => program.account.counter.all(),
