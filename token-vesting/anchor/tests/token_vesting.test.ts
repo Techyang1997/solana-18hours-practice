@@ -1,76 +1,100 @@
 import * as anchor from '@coral-xyz/anchor'
-import { Program } from '@coral-xyz/anchor'
-import { Keypair } from '@solana/web3.js'
-import { Counter } from '../target/types/counter'
+import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor'
+import { Connection, Keypair, PublicKey } from '@solana/web3.js'
+import { TokenVesting } from '../target/types/token_vesting'
+import { createMint, mintTo, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet'
+import { BN } from 'bn.js'
 
-describe('counter', () => {
-  // Configure the client to use the local cluster.
-  const provider = anchor.AnchorProvider.env()
-  anchor.setProvider(provider)
-  const payer = provider.wallet as anchor.Wallet
+describe('token_vesting', () => {
 
-  const program = anchor.workspace.Counter as Program<Counter>
+  const companyName = 'Company'
 
-  const counterKeypair = Keypair.generate()
+  let employerProvider: AnchorProvider;
+  let employer: Keypair;
+  let connection: Connection;
+  let beneficiary: Keypair;
+  let beneficiaryProvider: AnchorProvider;
+  let employerProgram: Program<TokenVesting>;
+  let beneficiaryProgram: Program<TokenVesting>;
+  let mint: PublicKey;
+  let vestingAccountKey: PublicKey;
+  let treasuryTokenAccount: PublicKey;
+  let employeeAccount: PublicKey;
 
-  it('Initialize Counter', async () => {
-    await program.methods
-      .initialize()
+  beforeAll(async () => {
+    employerProvider = anchor.AnchorProvider.env();
+    anchor.setProvider(employerProvider);
+
+    employer = (employerProvider.wallet as Wallet).payer;
+
+    connection = employerProvider.connection;
+
+    mint = await createMint(connection,employer,employer.publicKey,null,2);
+
+    beneficiary = Keypair.generate()
+
+    beneficiaryProvider = new AnchorProvider(
+      connection,
+      new NodeWallet(beneficiary),
+      AnchorProvider.defaultOptions(),
+    );
+
+    employerProgram = new Program<TokenVesting>(anchor.workspace.TokenVesting.idl, employerProvider);
+
+    beneficiaryProgram = new Program<TokenVesting>(anchor.workspace.TokenVesting.idl, beneficiaryProvider);
+
+    [vestingAccountKey] = PublicKey.findProgramAddressSync([Buffer.from(companyName)],employerProgram.programId);
+
+    [treasuryTokenAccount] = PublicKey.findProgramAddressSync([Buffer.from('vesting_treasury'), Buffer.from(companyName)],employerProgram.programId);
+
+    [employeeAccount] = PublicKey.findProgramAddressSync([Buffer.from('employee_vesting'),beneficiary.publicKey.toBuffer(),vestingAccountKey.toBuffer()],beneficiaryProgram.programId);
+
+  })
+  it('create a vesting token account', async () => {
+      const tx = employerProgram.methods.createVestingAccount(companyName).accounts({
+        signer: employer.publicKey,
+        mint,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc({commitment:"confirmed"});
+
+      const vestingAccountData = await employerProgram.account.vestingAccount.fetch(vestingAccountKey,"confirmed");
+
+    console.log('Vesting Account Data:', JSON.stringify(vestingAccountData, null, 2));
+
+    console.log('Create Vesting Account Transaction Signature:', tx);
+  })
+
+  it('create a treasury token account', async () => {
+    const amount = 10_000 * 10 ** 9;
+    const mintTx = await mintTo(connection, employer, mint, treasuryTokenAccount,employer.publicKey, amount)
+    console.log("Mint to treasury token account:",mintTx);
+  })
+
+  it('create an employee vesting account', async () => {
+    const tx2 = await employerProgram.methods
+      .createEmployeeAccount(new BN(0), new BN(100), new BN(100), new BN(0))
       .accounts({
-        counter: counterKeypair.publicKey,
-        payer: payer.publicKey,
+        beneficiary: beneficiary.publicKey,
+        vestingAccount: vestingAccountKey,
       })
-      .signers([counterKeypair])
-      .rpc()
+      .rpc({ commitment: 'confirmed', skipPreflight: true })
 
-    const currentCount = await program.account.counter.fetch(counterKeypair.publicKey)
-
-    expect(currentCount.count).toEqual(0)
+    console.log('Create Employee Account Transaction Signature:', tx2)
+    console.log('Employee account', employeeAccount.toBase58())
   })
 
-  it('Increment Counter', async () => {
-    await program.methods.increment().accounts({ counter: counterKeypair.publicKey }).rpc()
+  it('claim tokens', async () => {
 
-    const currentCount = await program.account.counter.fetch(counterKeypair.publicKey)
+    console.log('Employee account', employeeAccount.toBase58())
 
-    expect(currentCount.count).toEqual(1)
-  })
-
-  it('Increment Counter Again', async () => {
-    await program.methods.increment().accounts({ counter: counterKeypair.publicKey }).rpc()
-
-    const currentCount = await program.account.counter.fetch(counterKeypair.publicKey)
-
-    expect(currentCount.count).toEqual(2)
-  })
-
-  it('Decrement Counter', async () => {
-    await program.methods.decrement().accounts({ counter: counterKeypair.publicKey }).rpc()
-
-    const currentCount = await program.account.counter.fetch(counterKeypair.publicKey)
-
-    expect(currentCount.count).toEqual(1)
-  })
-
-  it('Set token_vesting value', async () => {
-    await program.methods.set(42).accounts({ counter: counterKeypair.publicKey }).rpc()
-
-    const currentCount = await program.account.counter.fetch(counterKeypair.publicKey)
-
-    expect(currentCount.count).toEqual(42)
-  })
-
-  it('Set close the token_vesting account', async () => {
-    await program.methods
-      .close()
+    const tx3 = await beneficiaryProgram.methods
+      .claimTokens(companyName)
       .accounts({
-        payer: payer.publicKey,
-        counter: counterKeypair.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
       })
-      .rpc()
+      .rpc({ commitment: 'confirmed' })
 
-    // The account should no longer exist, returning null.
-    const userAccount = await program.account.counter.fetchNullable(counterKeypair.publicKey)
-    expect(userAccount).toBeNull()
+    console.log('Claim Tokens transaction signature', tx3)
   })
 })
