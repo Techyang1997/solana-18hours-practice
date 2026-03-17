@@ -7,8 +7,8 @@ import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet'
 import { BN } from 'bn.js'
 
 describe('token_vesting', () => {
-
-  const companyName = 'Company'
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  const companyName = 'One Person Company'
 
   let employerProvider: AnchorProvider;
   let employer: Keypair;
@@ -30,29 +30,42 @@ describe('token_vesting', () => {
 
     connection = employerProvider.connection;
 
-    mint = await createMint(connection,employer,employer.publicKey,null,2);
+    mint = await createMint(connection, employer, employer.publicKey, null, 2);
 
-    beneficiary = Keypair.generate()
+    beneficiary = Keypair.generate();
 
-    beneficiaryProvider = new AnchorProvider(
-      connection,
-      new NodeWallet(beneficiary),
-      AnchorProvider.defaultOptions(),
+    // 给 beneficiary 空投 2 个 SOL 以支付后续交易手续费
+    const airdropSignature = await connection.requestAirdrop(
+      beneficiary.publicKey,
+      2 * 10 ** 9,
     );
+    const latestBlockHash = await connection.getLatestBlockhash();
+    await connection.confirmTransaction({
+      blockhash: latestBlockHash.blockhash,
+      lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+      signature: airdropSignature,
+    });
+
+    beneficiaryProvider = new AnchorProvider(connection, new NodeWallet(beneficiary), AnchorProvider.defaultOptions());
 
     employerProgram = new Program<TokenVesting>(anchor.workspace.TokenVesting.idl, employerProvider);
 
     beneficiaryProgram = new Program<TokenVesting>(anchor.workspace.TokenVesting.idl, beneficiaryProvider);
 
-    [vestingAccountKey] = PublicKey.findProgramAddressSync([Buffer.from(companyName)],employerProgram.programId);
+    [vestingAccountKey] = PublicKey.findProgramAddressSync([Buffer.from(companyName)], employerProgram.programId);
 
-    [treasuryTokenAccount] = PublicKey.findProgramAddressSync([Buffer.from('vesting_treasury'), Buffer.from(companyName)],employerProgram.programId);
+    [treasuryTokenAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('vesting_treasury'), Buffer.from(companyName)],
+      employerProgram.programId,
+    );
 
-    [employeeAccount] = PublicKey.findProgramAddressSync([Buffer.from('employee_vesting'),beneficiary.publicKey.toBuffer(),vestingAccountKey.toBuffer()],beneficiaryProgram.programId);
-
-  })
+    [employeeAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('employee_vesting'), beneficiary.publicKey.toBuffer(), vestingAccountKey.toBuffer()],
+      beneficiaryProgram.programId,
+    );
+  });
   it('create a vesting token account', async () => {
-      const tx = employerProgram.methods.createVestingAccount(companyName).accounts({
+      const tx = await employerProgram.methods.createVestingAccount(companyName).accounts({
         signer: employer.publicKey,
         mint,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -71,9 +84,11 @@ describe('token_vesting', () => {
     console.log("Mint to treasury token account:",mintTx);
   })
 
+  const now = Math.floor(Date.now() / 1000)
   it('create an employee vesting account', async () => {
+
     const tx2 = await employerProgram.methods
-      .createEmployeeAccount(new BN(0), new BN(100), new BN(100), new BN(0))
+      .createEmployeeAccount(new BN(now), new BN(now + 3), new BN(now + 3), new BN(1000))
       .accounts({
         beneficiary: beneficiary.publicKey,
         vestingAccount: vestingAccountKey,
@@ -87,7 +102,7 @@ describe('token_vesting', () => {
   it('claim tokens', async () => {
 
     console.log('Employee account', employeeAccount.toBase58())
-
+    await sleep(6000) // 程序在这里暂停 6 秒
     const tx3 = await beneficiaryProgram.methods
       .claimTokens(companyName)
       .accounts({
@@ -96,5 +111,5 @@ describe('token_vesting', () => {
       .rpc({ commitment: 'confirmed' })
 
     console.log('Claim Tokens transaction signature', tx3)
-  })
+  },10000)
 })
