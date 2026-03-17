@@ -2,7 +2,6 @@
 
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::Token;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface,TransferChecked,transfer_checked};
 
 declare_id!("4wNYzsLwfqX1mjEsG4qBFzScFZhsbHzdqxitGAbWY1Zj");
