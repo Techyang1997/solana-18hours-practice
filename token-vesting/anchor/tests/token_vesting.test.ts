@@ -64,7 +64,7 @@ describe('token_vesting', () => {
       beneficiaryProgram.programId,
     );
   });
-  it('create a vesting token account', async () => {
+  it('create a token_vesting token account', async () => {
       const tx = await employerProgram.methods.createVestingAccount(companyName).accounts({
         signer: employer.publicKey,
         mint,
@@ -85,7 +85,7 @@ describe('token_vesting', () => {
   })
 
   const now = Math.floor(Date.now() / 1000)
-  it('create an employee vesting account', async () => {
+  it('create an employee token_vesting account', async () => {
 
     const tx2 = await employerProgram.methods
       .createEmployeeAccount(new BN(now), new BN(now + 3), new BN(now + 3), new BN(1000))
